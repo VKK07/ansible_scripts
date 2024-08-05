@@ -4,118 +4,116 @@
 - hosts: localhost
   become: yes
   tasks:
-    - ec2_vpc_net:
-        aws_access_key: 
-        aws_secret_key: 
+    - name: Create VPC
+      ec2_vpc_net:
+        aws_access_key: ""
+        aws_secret_key: ""
         cidr_block: 10.0.0.0/16
-        name: Rabbani-vpc
+        name: sai-vpc
         region: us-east-1
-        state: present  # to delete Vpc then replace absent instead of presnt
+        state: present  # to delete Vpc then replace absent instead of present
       register: vpc_result
 
 #### Internet gateway Creation #######
 
-    - ec2_vpc_igw:
-        aws_access_key: 
-        aws_secret_key: 
+    - name: Create Internet Gateway
+      ec2_vpc_igw:
+        aws_access_key: ""
+        aws_secret_key: ""
         vpc_id: "{{ vpc_result.vpc.id }}"
         region: us-east-1
         state: present
         tags:
-          Name: Rabbanai-igw
+          Name: sai-igw
       register: igw_result
 
- ## create an vpc pub subnet
+## Create a VPC public subnet
 
-
-    - ec2_vpc_subnet:
-        aws_access_key: 
-        aws_secret_key: 
+    - name: Create Public Subnet
+      ec2_vpc_subnet:
+        aws_access_key: ""
+        aws_secret_key: ""
         vpc_id: "{{ vpc_result.vpc.id }}"
         region: us-east-1
-        az: us-east-1a      # az is the availability zone
+        az: us-east-1a  # az is the availability zone
         state: present
         cidr: 10.0.0.0/20
-        # enable public ip
         map_public: yes
         resource_tags:
-          Name: Rabbani-pub
+          Name: sai-pub
       register: pubsubnet_result
 
-    ## create an vpc pvt subnet
+## Create a VPC private subnet
 
-
-    - ec2_vpc_subnet:
-        aws_access_key: 
-        aws_secret_key: 
+    - name: Create Private Subnet
+      ec2_vpc_subnet:
+        aws_access_key: ""
+        aws_secret_key: ""
         vpc_id: "{{ vpc_result.vpc.id }}"
         region: us-east-1
-        az: us-east-1b      # az is the availability zone
+        az: us-east-1a  # az is the availability zone
         state: present
         cidr: 10.0.16.0/20
-        # enable public ip
         map_public: no
         resource_tags:
-          Name: Rababni-pvt
+          Name: sai-pvt
       register: pvtsubnet_result
 
-## create an vpc pub route table
+## Create a VPC public route table
 
-
-    - ec2_vpc_route_table:
-        aws_access_key: 
-        aws_secret_key: 
+    - name: Create Public Route Table
+      ec2_vpc_route_table:
+        aws_access_key: ""
+        aws_secret_key: ""
         vpc_id: "{{ vpc_result.vpc.id }}"
         region: us-east-1
         state: present
         tags:
-          Name: Rabbani-pub-rt
+          Name: sai-pub-rt
         subnets: [ "{{ pubsubnet_result.subnet.id }}" ]
-        # create routes
         routes:
           - dest: 0.0.0.0/0
             gateway_id: "{{ igw_result.gateway_id }}"
       register: public_route_table
 
-    ## create an vpc pvt route table
+## Create a VPC private route table
 
-
-    - ec2_vpc_route_table:
+    - name: Create Private Route Table
+      ec2_vpc_route_table:
         aws_access_key: 
         aws_secret_key: 
         vpc_id: "{{ vpc_result.vpc.id }}"
         region: us-east-1
         state: present
         tags:
-          Name: Rabbani-pvt-rt
+          Name: sai-pvt-rt
         subnets: [ "{{ pvtsubnet_result.subnet.id }}" ]
       register: private_route_table
 
-   ## create an vpc security groups
+## Create a VPC security group
 
-
-    - ec2_group:
-        aws_access_key: 
-        aws_secret_key: 
+    - name: Create Security Group
+      ec2_group:
+        aws_access_key: ""
+        aws_secret_key: ""
         vpc_id: "{{ vpc_result.vpc.id }}"
         region: us-east-1
         state: present
-        name: Rabbani-sg
+        name: kiran-sg
         description: allow
         tags:
-          Name: gouse-sg
+          Name: sai-sg
         rules:
-        - proto: all
-          cidr_ip: 0.0.0.0/0
-          rule_desc: allow all traffic
+          - proto: all
+            cidr_ip: 0.0.0.0/0
+            rule_desc: allow all traffic
       register: security_group_results
 
+## Tasks for EC2 launch
 
-   ## tasks file for ec2-launch ##
-
-
-    - ec2:
-        image: ami-033a1ebf088e56e81
+    - name: Launch EC2 Instance
+      ec2:
+        image: ami-024ebc7de0fc64e44
         instance_type: t2.micro
         region: us-east-1
         wait: yes
@@ -124,7 +122,15 @@
         vpc_subnet_id: "{{ pubsubnet_result.subnet.id }}"
         assign_public_ip: yes
         group_id: "{{ security_group_results.group_id }}"
-        aws_access_key: 
-        aws_secret_key: 
+        aws_access_key: ""
+        aws_secret_key: ""
         instance_tags:
-                Name: Rabbani-Ec            
+          key_name: "saaa"
+          Name: "kiran-Ec2"
+        user_data: |
+          #!/bin/bash
+          yum update -y
+          yum install -y git httpd.x86_64
+          systemctl enable httpd
+          systemctl start httpd
+          git clone https://github.com/VKK07/ecomm.git /var/www/html/
